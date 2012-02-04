@@ -8,6 +8,19 @@ class GeneralSiteProperties(db.Model):
     def get_properties(cls):
         return cls.all()[0]
 
+class Image(db.Model) :
+    name = db.StringProperty(required=True)
+    picture = db.BlobProperty(required=True)
+    title = db.StringProperty(required=True)
+    alt = db.StringProperty(required=True)
+
+def getImage(name):
+    result = db.GqlQuery("SELECT * FROM Image WHERE name = :1 LIMIT 1",
+                      name).fetch(1)
+    if (len(result) > 0):
+          return result[0]
+    else:
+          return None
 
 class Member(db.Model):
     user_id = db.StringProperty(required=True)
@@ -30,34 +43,25 @@ class Member(db.Model):
         return member
 
 
-class Badge(db.Model):
-    name = db.StringProperty(required=True)
-    description = db.StringProperty(required=True)
-    category = db.CategoryProperty(required=True)
-    image = db.StringProperty(required=True)
-    value = db.IntegerProperty(required=True)
-
-
-class Award(db.Model):
-
-    member = db.ReferenceProperty(Member, collection_name='awards')
-    badge = db.ReferenceProperty(Badge, collection_name='awards')
-    date = db.DateProperty(required=True)
-    proof = db.StringProperty(default='')
-
-
-class NewsArticle(db.Model):
+class NewsArticleNew(db.Model):
 
     title = db.TextProperty(required=True)
-    author = db.StringProperty(required=True)
+    author = db.ReferenceProperty(Member, required=True)
     date = db.DateProperty(required=True)
     body = db.TextProperty(required=True)
+    picture = db.ReferenceProperty(Image)
 
+class TalkNew(db.Model):
 
-class Talk(db.Model):
-
-    title = db.StringProperty()
-    member = db.ReferenceProperty(Member, required=True, collection_name='talks')
+    title = db.TextProperty(required=True)
+    author = db.ReferenceProperty(Member, required=True, collection_name='talks')
     date = db.DateProperty(required=True)
-    video = db.LinkProperty(required=True)
-    description = db.TextProperty()
+    video = db.LinkProperty()
+    body = db.TextProperty()
+
+class Hack(db.Model):
+
+    title = db.TextProperty(required=True)
+    date = db.DateProperty(required=True)
+    body = db.TextProperty(required=True)
+    picture = db.ReferenceProperty(Image)

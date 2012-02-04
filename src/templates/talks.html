@@ -14,11 +14,13 @@
     {% for talk in content_list %}
         <div class="talks">
             <h2>{{ talk.title }}</h2>
-            <p><a href="/members/{{ talk.member.handle }}">{{ talk.member.handle }}</a> {{ talk.date }}</p>
+            <p><a href="/members/{{ talk.member.handle }}">{{ talk.member.handle }}</a> {{ talk.date }}{% if is_admin %}, <a href="/admin/edit/{{ talk.key }}?edit=talk">Edit</a> {% endif %}</p>
+            {% if talk.video %}
             <center>
                 <iframe src="{{ talk.video }}" width="400" height="300" frameborder="0"></iframe>
             </center>
-            <div>{{ talk.description|safe }}</div>
+            {% endif %}
+            <div>{{ talk.body|safe }}</div>
         </div>
     {% endfor %}
 

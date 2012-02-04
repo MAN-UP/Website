@@ -2,36 +2,107 @@
 
 {% block main %}
     <div id="edit_news_item">
-        <h2>Edit News Article</h2><a href="/admin/news">Back to news admin</a>
+        <h2>Edit {{ thing }} </h2>
         {% if message %}
             <p>{{ message }}</p>
         {% endif %}
+        <p> <a href="/admin?tabselect={{ edit }}">Back</a>
         {% if show_form %}
-            <form action="/admin/news/{{ key }}" method="post">
-                <input type="hidden" name="kind" value="article"/>
+        <p> If you do not want a picture do not upload a picture and select to not use an alias picture. </p>
+            <form action="/admin/edit/{{ key }}" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="kind" value="{{ edit }}"/>
                 <table class="form">
                     <tr>
                         <td>Title:</td>
-                        <td><input type="text" name="title" value="{{ form_data.title }}"/></td>
+                        <td colspan=3><input type="text" name="title" value="{{ form_data.title }}"/></td>
                     </tr>
+                    {% ifnotequal edit "hack" %}
                     <tr>
                         <td>Author:</td>
-                        <td><input type="text" name="author" value="{{ form_data.author }}"/></td>
-                    </tr>
-                    <tr>
-                        <td>Date:</td>
-                        <td>
-                            <input type="text" name="date" id="news_date" value="{{ form_data.date|date:"Y-m-d" }}"/>
-                            <script>$('#news_date').datepicker({dateFormat: 'yy-mm-dd'})</script>
+                        <td colspan=3>
+                        <select id="author" name="author">
+                        {% for member in members %}
+                            <option value="{{ member.key.id }}" {% ifequal member form_data.author %}selected{% endifequal %}>
+                                {{ member.handle }}
+                            </option>
+                        {% endfor %}
+                        </select>
                         </td>
                     </tr>
+                    {% endifnotequal %}
                     <tr>
-                        <td>Body:</td>
-                        <td><textarea name="body">{{ form_data.body }}</textarea></td>
+                        <td>Date:</td>
+                        <td colspan=3>
+
+                        <input type="text" name="date" id="edit_date" value="{{form_data.date}}" />
+                        <script>
+                                $("#edit_date").datepicker({dateFormat: 'yy-mm-dd'});
+                                $("#edit_date").attr( 'readOnly' , 'true' );
+                                $(".selector").datepicker({ showOn: 'both' });
+                        </script>
+                        </td>
+                    </tr>
+                    {% ifnotequal edit "talk" %}
+                    <tr><td></td><td colspan=3> Either upload a new picture or use an existing file. </td></tr>
+                    {% if form_data.picture %}
+                    <tr><td></td><td colspan=3> This replaces the picture. To edit the alias go to Image tab. </td></tr>
+                    {% endif %}
+                    <tr>
+                    {% if form_data.picture %}
+                        <td>Replace Picture:</td>
+                    {% else %}
+                        <td>Picture:</td>
+                    {% endif %}
+                        <td>
+                            <input type="file" name="picture" />
+                        </td>
+                        <td> Alias: </td>
+                        <td>
+                        <select id="picture_alias" name="picture_alias">
+                        {% for image in images %}
+                            <option value="{{ image.key.id }}" >
+                                {{ image.name }}
+                            </option>
+                        {% endfor %}
+                            <option value="none" selected>
+                                Do Not Use
+                            </option>
+                        </select>
+                        </td>
+                    </tr>
+                    <tr><td></td><td colspan=3> Give picture title and alt text <b> only </b> if uploading a new picture. </td></tr>
+                    <tr>
+                        <td> Title text </td>
+                        <td>
+                            <input type="text" name="picture_title" value="{{image.title}}">
+                        </td>
+                        <td> Alt text </td>
+                        <td>
+                            <input type="text" name="picture_alt" value="{{image.alt}}">
+                        </td>
+                    </tr>
+                    {% if form_data.picture %}
+                    <tr>
+                        <td> Current Picture </td>
+                        <td colspan=3><p><img src="img?img_id={{ form_data.picture.key }}" /></p> </td>
                     </tr>
                     <tr>
-                        <td/>
-                        <td>{% ifnotequal key "new" %}<input type="checkbox" name="delete_article" value="delete" />Delete article {% endifnotequal %}<input type="submit" value="Submit" /></td>
+                        <td> Delete Picture </td>
+                        <td  colspan=3><input type="checkbox" name="delete_picture" value="delete" /></td>
+                    </tr>
+                   {% endif %}
+                   {% else %}
+                    <tr>
+                        <td>Video (optional):</td>
+                        <td  colspan=3><input type="text" name="talk_video" value = "{{form_data.video }}"/></td>
+                    </tr>
+                    {% endifnotequal %}
+                    <tr>
+                        <td>Body:</td>
+                        <td  colspan=3><textarea name="body">{{ form_data.body }}</textarea></td>
+                    </tr>
+                    <tr>
+                        <td><input type="submit" value="Update" /></td>
                     </tr>
                 </table>
             </form>

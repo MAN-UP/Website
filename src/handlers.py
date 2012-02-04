@@ -6,17 +6,38 @@ from google.appengine.api import users, datastore_errors
 from google.appengine.api.mail import send_mail
 from google.appengine.ext.webapp import RequestHandler, template
 from google.appengine.ext.db import Key, BadKeyError
+from google.appengine.api import images
+from google.appengine.ext import db
+# RequestTooLargeError can live in two different places.
+try: 
+    # When deployed 
+    from google.appengine.runtime import RequestTooLargeError 
+except ImportError: 
+    # In the development server 
+    from google.appengine.runtime.apiproxy_errors import RequestTooLargeError
 
 import utils
-from models import Award, Badge, Member, NewsArticle, Talk, \
-                   GeneralSiteProperties
+from models import Member, NewsArticleNew, TalkNew, Hack,Image,\
+                   GeneralSiteProperties, getImage
 
 get_path = utils.path_getter(__file__)
+
+## I have split the Handlers up into simple and non-simple, i.e the ones at the end are trivial and uninteresting
+
+## Non-simple Handlers, in alphabetical order
 
 class BaseHandler(RequestHandler):
 
     login_required = False
     title = None
+    image_height=500
+    image_width=500
+
+    thing_descriptors = {
+      'news' : "News Article",
+      'hack' : "Hack-a-thon Entry",
+      'talk' : "Talk"
+    }
 
     def render_template(self, template_name, template_dict=None):
         try:
@@ -110,45 +131,32 @@ class AccountHandler(BaseHandler):
     def get(self):
         self.render_template('account')
 
-
 class AdminHandler(BaseHandler):
 
     login_required = True
+    admin_message = None
+
+    def get(self):
+        if 'tabselect' in self.request.GET:
+           tabselect = self.request.get('tabselect')
+        else:
+           tabselect='general'
+
+        self.render_template('admin',
+            {'news_list' : NewsArticleNew.all().order('-date'),
+             'talk_list' : TalkNew.all().order('-date'),
+             'hack_list' : Hack.all().order('-date'),
+             'image_list' : Image.all(),
+             'image_height' : self.image_height,
+             'image_width' : self.image_width,
+             'members': Member.all(),
+             'message' : self.admin_message,
+             'tabselect':tabselect})
 
     def post(self):
         post = self.request.POST
-        if post['kind'] == 'badge':
-            badge = Badge(
-                name=post['name'],
-                description=post['description'],
-                category=post['category'],
-                image=post['image'],
-                value=int(post['value'])
-            )
-            badge.save()
-        elif post['kind'] == 'award':
-            badge = Badge.get_by_id(int(post['badge']))
-            for member in post.getall('members'):
-                member = Member.get_by_id(int(member))
-                award = Award(
-                    member=member,
-                    badge=badge,
-                    date=datetime.date.today(),
-                    proof=post['proof']
-                )
-                award.save()
-                member.score += badge.value
-                member.save()
-        elif post['kind'] == 'talk':
-            talk = Talk(
-                title=post['title'],
-                date=utils.parse_date(post['date']),
-                description=post['description'],
-                member=Member.get_by_id(int(post['member'])),
-                video=post['video']
-            )
-            talk.put()
-        elif post['kind'] == 'taglineform':
+        kind=post['kind']
+        if  kind== 'taglineform':
             properties = GeneralSiteProperties.all().get()
             if properties == None:
                 properties = GeneralSiteProperties(tag_line=post['tagline'])
@@ -156,204 +164,251 @@ class AdminHandler(BaseHandler):
             else:
                 properties.tag_line = post['tagline']
                 properties.put()
-        self.get()
+        elif kind=="image_upload":
+             if(self.request.get("picture")):
+                 try:
+                      if('resize' in post):
+                          pictureImage = Image(picture=images.resize(self.request.get("picture"),int(post['height']), int(post['width'])),
+                                               name="no-name",title=" ",alt=" ")
+                      else:
+                          pictureImage = Image(picture=self.request.get("picture"),name="no-name",title=" ",alt=" ")
+                      if(post['alias']!=""):
+                         replace=True
+                         name=post['alias']
+                         for other_image in Image.all():
+                             if other_image.name == name :
+                                replace=False
+                                self.admin_message="You cannot use %s as an alias as it is used for another image" % name
+                         if replace :
+                             pictureImage.name=name
+                      if(post['title']!=""):
+                         pictureImage.name=post['title']
+                      if(post['alt']!=""):
+                         pictureImage.name=post['alt']
+                      pictureImage.put()
+                      self.admin_message = 'Image uploaded'
+                 except RequestTooLargeError:
+                      self.admin_message = 'Image not uploaded - too large'
+                 except TypeError:
+                      self.admin_message = 'Width and Height have to be integers'
+             else:
+                 self.admin_message = 'You need to actually select a picture!'
+             kind='image'
+        else :
+             things_deleted = 0
+             for entry_key in self.request.POST.getall('delete_entry'):
+                try:
+                    entry_key = Key(entry_key)
+                except BadKeyError:
+                    # Wrong syntax for a key, move on to next key.
+                    continue
+                if(kind=='news'):
+                    thing = NewsArticleNew.get(entry_key)
+                elif(kind=='talk'):
+                    thing = TalkNew.get(entry_key)
+                elif(kind=='hack'):
+                    thing = Hack.get(entry_key)
+                if thing:
+                    thing.delete()
+                    things_deleted += 1
+                # Else, not article has this key.
+             self.admin_message = '%d %s(s) deleted.' % (things_deleted,self.thing_descriptors.get(kind))
 
-    def get(self):
-        self.render_template('admin', {
-            'badges': Badge.all(),
-            'members': Member.all(),
-        })
-
-
-class AdminNewsHandler(BaseHandler):
-    def get(self):
-        self.render_template('admin_news',
-            {'news_list' : NewsArticle.all().order('-date')})
-
-    def post(self):
-        articles_deleted = 0
-        for article_key in self.request.POST.getall('delete_article'):
-            try:
-                article_key = Key(article_key)
-            except BadKeyError:
-                # Wrong syntax for a key, move on to next key.
-                continue
-            article = NewsArticle.get(article_key)
-            if article:
-                article.delete()
-                articles_deleted += 1
-            # Else, not article has this key.
-
-        self.render_template('admin_news',
-            {'news_list': NewsArticle.all().order('-date'),
-             'delete_successful': '%d article(s) deleted.' % articles_deleted})
-
-
-class BadgeHandler(BaseHandler):
-
-    def get(self, id):
-        self.render_template('badge', {
-            'badge': Badge.get_by_id(int(id))
-        })
-
-
-class BadgeApplicationHandler(BaseHandler):
-
-    login_required = True
-
-    def post(self):
-        post = self.request.POST
-        if len(post) == 2 and 'badge' in post and 'proof' in post:
-            body = 'Member: %s\nBadge: %s\nProof:\n%s' % (
-                Member.get_current_member().handle,
-                post['badge'],
-                post['proof']
-            )
-            send_mail(
-                sender='petersutton2009@gmail.com',
-                to='petersutton2009@gmail.com',
-                subject='Badge application',
-                body=body
-            )
-            self.render_template('badge_application', {
-                'message': 'Application submitted. \
-                            It will be reviewed as soon as possible.'
-            })
-
-    def get(self):
-        selected_badge = self.request.GET.getall('badge')
-        if selected_badge:
-            selected_badge = selected_badge[0]
-        else:
-            selected_badge = None
-        badges = Badge.gql('ORDER BY name')
-        self.render_template('badge_application', {
-            'badges': badges,
-            'selected_badge': selected_badge
-        })
+        self.render_template('admin',
+            {'news_list' : NewsArticleNew.all().order('-date'),
+             'talk_list' : TalkNew.all().order('-date'),
+             'hack_list' : Hack.all().order('-date'),
+             'image_list' : Image.all(),
+             'image_height' : self.image_height,
+             'image_width' : self.image_width,
+             'members': Member.all(),
+             'message' : self.admin_message,
+             'tabselect':kind})
 
 
-class BadgesHandler(BaseHandler):
-
-    title = 'Badges'
-
-    def get(self):
-        order = self.request.GET.get('order', 'value')
-        if order == 'receivers':
-            badges = list(Badge.all())
-            badges.sort(key=lambda i:i.awards.count())
-        else:
-            badges = Badge.gql('ORDER BY ' + order)
-        self.render_template('badges', {
-            'badges': badges
-        })
-
-
-class CalendarHandler(BaseHandler):
-
-    def get(self):
-        self.render_template('calendar')
-
-
-class ContactHandler(BaseHandler):
-
-    def get(self):
-        self.render_template('contact')
 
 
 class EditHandler(BaseHandler):
 
     def get(self, key):
-        template_dict = {'key': key, 'show_form' : True}
+        edit = self.request.get('edit')
+        template_dict = {'key': key, 'show_form' : True,'members': Member.all(),
+                         'edit':edit,'thing' : self.thing_descriptors.get(edit),'images':Image.all().filter('name != ', "no-name") }
         if key == 'new':
             template_dict['form_data'] = {
-                'title': '',
                 'author': Member.get_current_member().handle,
-                'date': datetime.date.today(),
-                'body': ''}
+                'date': unicode(datetime.date.today())}
         else:
             try:
-                template_dict['form_data'] = NewsArticle.get(Key(key))
+                if(edit=='news'):
+                   thing = NewsArticleNew.get(Key(key))
+                   form_data={'title':thing.title,'author':thing.author,'date':unicode(thing.date),'body':thing.body,'picture':thing.picture}
+                elif(edit=='talk'):
+                   thing = TalkNew.get(Key(key))
+                   form_data={'title':thing.title,'author':thing.author,'date':unicode(thing.date),'body':thing.body,'video':thing.video}
+                elif(edit=='hack'):
+                   thing = Hack.get(Key(key))
+                   form_data={'title':thing.title,'date':unicode(thing.date),'body':thing.body,'picture':thing.picture}
+                template_dict['form_data']=form_data
             except BadKeyError:
                 template_dict['message'] = \
-                    'Could not find article with key %r.' % key
+                    'Could not find %s with key %r.' %  (self.thing_descriptors.get(edit), key)
                 template_dict['show_form'] = False
         self.render_template('edit', template_dict)
 
     def post(self, key):
         post = self.request.POST
+        edit = self.request.get('kind')
         form_data = dict((k, post.get(k, ''))
-                          for k in ('title', 'author', 'date', 'body'))
-        template_dict = {'form_data': form_data, 'key': key, 'show_form' : True}
-        if 'delete_article' in post:
-            try:
-                NewsArticle.get(Key(key)).delete()
-            except datastore_errors.Error:
-                template_dict['message'] = \
-                    'Could not delete article with key %r.' % key
-            else:
-                template_dict['message'] = 'Article deleted.'
-                template_dict['show_form'] = False
-        else:
-            try:
-                date = utils.parse_date(form_data['date'])
-            except ValueError:
+                          for k in ('title', 'author', 'date', 'body', 'picture','video'))
+        template_dict = {'form_data': form_data, 'key': key, 'show_form' : True,'members': Member.all(),
+                         'edit':edit,'thing' : self.thing_descriptors.get(edit),'images':Image.all().filter('name != ', "no-name")}
+
+        try:
+                this_date = utils.parse_date(form_data['date'])
+        except ValueError:
                 template_dict['message'] = \
                     'Date is not in the correct format (YYYY-MM-DD).'
-            else:
+        else:
                 if key == 'new':
                     try:
-                        article = NewsArticle(title=form_data['title'],
-                                              author=form_data['author'],
-                                              date=date,
-                                              body=form_data['body'])
-                        article.put()
+                        if(edit=="news"):
+                             thing = NewsArticleNew(
+                                  title=post['title'],
+                                  author=Member.get_by_id(int(post['author'])),
+                                  date=this_date,
+                                  body=post['body']
+                             )
+                        elif(edit=="talk"):
+                             thing = TalkNew(
+                                  title=post['title'],
+                                  author=Member.get_by_id(int(post['author'])),
+                                  date=this_date,
+                                  body=post['body']
+                             )
+                             if('video' in post):
+                                 talk.video = post['video']
+                        elif(edit=="hack"):
+                             thing = Hack(
+                                  title=post['title'],
+                                  date=this_date,
+                                  body=post['body']
+                             )
+                        if(edit=="news" or edit=="hack"):
+                             if(self.request.get("picture")):
+                                  pictureImage = Image(
+                                               picture=images.resize(self.request.get("picture"), self.image_height, self.image_width),
+                                               name="no-name",title=" ",alt=" ")
+                                  if post['picture_title'] :
+                                     pictureImage.title=post['picture_title']
+                                  if post['picture_alt'] :
+                                     pictureImage.alt=post['picture_alt']
+                                  pictureImage.put()
+                                  thing.picture=pictureImage
+                             elif(post['picture_alias']!="none"):
+                                  thing.picture=Image.get_by_id(int(post['picture_alias']))
+
+                        thing.put()
+                        template_dict['key']=thing.key
+
                     except datastore_errors.Error:
                         template_dict['message'] = \
-                            'Could not create new article.'
+                            'Could not create new %s.' % self.thing_descriptors.get(edit)
                     else:
-                        template_dict['message'] = 'Article created.'
+                        template_dict['message'] = '%s created.' % self.thing_descriptors.get(edit)
                         template_dict['show_form'] = False
                 else:
                     try:
-                        article = NewsArticle.get(Key(key))
+                        if(edit=="news"):
+                             thing = NewsArticleNew.get(Key(key))
+                             thing.title = form_data['title']
+                             thing.author = Member.get_by_id(int(post['author']))
+                             thing.date = this_date
+                             thing.body = form_data['body']
+
+                        elif(edit=="talk"):
+
+                             thing = TalkNew.get(Key(key))
+                             thing.title = form_data['title']
+                             thing.date = this_date
+                             thing.body = form_data['body']
+
+                        elif(edit=="hack"):
+
+                             thing = Hack.get(Key(key))
+                             thing.title = form_data['title']
+                             thing.date = this_date
+                             thing.body = form_data['body']
+
+                        if(self.request.get("picture")):
+                             pictureImage = Image(picture=images.resize(self.request.get("picture"), self.image_height, self.image_width),
+                                                   name="no-name",title=" ",alt=" ")
+                             if post['picture_title'] :
+                                 pictureImage.title=post['picture_title']
+                             if post['picture_alt'] :
+                                 pictureImage.alt=post['picture_alt']
+                             pictureImage.put()
+                             thing.picture = pictureImage
+                        elif(post['picture_alias']!="none"):
+                                  thing.picture=Image.get_by_id(int(post['picture_alias']))
+
+                        if 'delete_picture' in post:
+                             thing.picture=None
+
                     except BadKeyError:
                         template_dict['message'] = \
-                            'Could not find article with key %r.' % key
+                            'Could not find %s with key %r.' % (self.thing_descriptors.get(edit),key)
                     else:
-                        article.title = form_data['title']
-                        article.author = form_data['author']
-                        article.date = date
-                        article.body = form_data['body']
                         try:
-                            article.put()
+                            thing.put()
                         except datastore_errors.Error:
                             template_dict['message'] = \
-                                'Could not save changes to article.'
+                                'Could not save changes to %s.' % self.thing_descriptors.get(edit)
                         else:
-                            template_dict['form_data'] = article
+                            template_dict['form_data'] = thing
                             template_dict['message'] = 'Changes saved.'
         self.render_template('edit', template_dict)
 
 
-class FAQHandler(BaseHandler):
+class ImageEditHandler(BaseHandler):
+    def get(self,key):
+        try:
+            image = Image.get(Key(key))
+            self.render_template('editImage',{'image':image})
+        except BadKeyError:
+            self.render_template('editImage',{'error':"Image Not Found"})
 
+    def post(self,key):
+        try:
+            image = Image.get(Key(key))
+            post = self.request.POST
+            image.name=post['name']
+            image.title=post['title']
+            image.alt=post['alt']
+            image.put()
+            self.render_template('editImage',{'image':image})
+        except BadKeyError:
+            self.render_template('editImage',{'error':"Image Not Found"})
+
+class ImageHandler(RequestHandler):
     def get(self):
-        self.render_template('faq')
-
-
-class FileNotFoundHandler(BaseHandler):
-    def get(self, url=None):
-        self.render_template('404', {'url': url})
-
-class GuideHandler(BaseHandler):
-    def get(self):
-        self.render_template('guide')
-
-class HackathonHandler(BaseHandler):
-
-    def get(self):
-        self.render_template('hack-a-thon')
+        get = self.request.GET
+        if 'img_id' in get :
+           image = db.get(get['img_id'])
+           if image.picture:
+               self.response.headers['Content-Type'] = "image/png"
+               self.response.out.write(image.picture)
+           else:
+               self.response.out.write("No image")
+        elif 'img_alias' in get :
+           image = getImage(get['img_alias'])
+           if image :
+               self.response.headers['Content-Type'] = "image/png"
+               self.response.out.write(image.picture)
+           else :
+               self.response.out.write("No image")
+        else:
+            self.response.out.write("No image")
 
 # This handler is a hack to force people to select handles.
 class LoginHandler(BaseHandler):
@@ -368,40 +423,15 @@ class LoginHandler(BaseHandler):
         else:
             self.redirect('/')
 
-
-class ManualHandler(BaseHandler):
-
-    def get(self):
-        self.render_template('manual')
-
-
-class MembersHandler(BaseHandler):
-
-    def get(self):
-        members = list(Member.all())
-        if members:
-            members.sort(key=lambda member:(member.score, member.handle))
-            rank = 0
-            ranked_members = [(rank, members[-1])]
-            for i in range(len(members) - 2, -1, -1):
-                if members[i + 1].score != members[i].score:
-                    rank += 1
-                ranked_members.append((rank, members[i]))
-        else:
-            ranked_members = []
-
-        self.render_template('members', {
-            'members': ranked_members
-        })
-
-
 class MemberHandler(BaseHandler):
 
     def get(self, handle):
         query = Member.gql('WHERE handle = :1', urllib.unquote(handle))
         member = iter(query).next() if query.count() else None
+        member_talks = Talk.all().filter('member = ', member)
         self.render_template('member', {
-            'member': member
+            'member': member,
+            'member_talks' : member_talks
         })
 
 
@@ -460,12 +490,43 @@ class PaginationHandler(BaseHandler):
              'message': message,
              'pagedata': pagination_dict})
 
+## Simple Handlers, in alphabetical order
+
+class CalendarHandler(BaseHandler):
+
+    def get(self):
+        self.render_template('calendar')
+
+
+class ContactHandler(BaseHandler):
+    def get(self):
+        self.render_template('contact')
+
+
+class FAQHandler(BaseHandler):
+      def get(self):
+        self.render_template('faq')
+
+
+class FileNotFoundHandler(BaseHandler):
+    def get(self, url=None):
+        self.render_template('404', {'url': url})
+
+class HackathonHandler(PaginationHandler):
+    _model = Hack
+    _template = 'hack-a-thon'
+
+
+class ManualHandler(BaseHandler):
+    def get(self):
+        self.render_template('manual')
 
 class NewsHandler(PaginationHandler):
-    _model = NewsArticle
+    _model = NewsArticleNew
     _template = 'news'
 
 
 class TalksHandler(PaginationHandler):
-    _model = Talk
+    _model = TalkNew
     _template = 'talks'
+

@@ -1,21 +1,22 @@
 {% extends "base.html" %}
 
 {% block main %}
-    <p>THIS IS THE GOD PAGE. I'VE NOT WRITTEN ANY SAFETY INTO THIS, SO BE CAREFUL.</P>
-
+    <p>THIS IS THE GOD PAGE. SO BE CAREFUL.</P>
+   {% if message %}<p><font color=red>{{ message }}</font></p>{% endif %}
     <div id="tab-links">
-        <div id="general" class="tab-link">General</div>
-        <div id="badge" class="tab-link">Badge</div>
-        <div id="award" class="tab-link">Award</div>
+        <div id="general" class="tab-link">Tag Line</div>
+        <div id="news" class="tab-link">News Article</div>
         <div id="talk" class="tab-link">Talk</div>
+        <div id="hack" class="tab-link">Hack-a-Thons</div>
+        <div id="image" class="tab-link">Images</div>
     </div>
 
+{% ifequal tabselect "general" %}
     <div id="general-tab-page" class="tab-page" style="display: block;">
+{% else %}
+    <div id="general-tab-page" class="tab-page">
+{% endifequal %}
         <h2>General</h2>
-
-        <ul>
-            <li><a href="/admin/news">Edit news articles</a></li>
-        </ul>
 
         <form action="/admin" method="post">
             <input type="hidden" name="kind" value="taglineform"/>
@@ -31,116 +32,134 @@
             </table>
         </form>
     </div>
-
-    <div id="badge-tab-page" class="tab-page">
-        <h2>Badge</h2>
-        <form action="/admin" method="post">
-            <input type="hidden" name="kind" value="badge"/>
-            <table class="form">
-                <tr>
-                    <td>Name:</td>
-                    <td><input type="text" name="name"/></td>
-                </tr>
-                <tr>
-                    <td>Description:</td>
-                    <td><input type="text" name="description"/></td>
-                </tr>
-                <tr>
-                    <td>Category:</td>
-                    <td><input type="text" name="category"/></td>
-                </tr>
-                <tr>
-                    <td>Image:</td>
-                    <td><input type="text" name="image"/></td>
-                </tr>
-                <tr>
-                    <td>Value:</td>
-                    <td><input type="text" name="value"/></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td><input type="submit" value="Submit" /></td>
-                </tr>
-            </table>
-        </form>
+{% ifequal tabselect "hack" %}
+    <div id="hack-tab-page" class="tab-page" style="display: block;">
+{% else %}
+    <div id="hack-tab-page" class="tab-page">
+{% endifequal %}
+        <h2>Hack-a-Thon</h2>
+        <a href="/admin/edit/new?edit=hack">Add New Hack-a-thon</a>
+        <h3>Hack-a-thon List</h3>
+        <div class="hack_list">
+            <form action="/admin" method="post">
+                <input type="hidden" name="kind" value="hack"/>
+                <table>
+                    {% for hack in hack_list %}
+                        <tr>
+                            <td><a href="/admin/edit/{{ hack.key }}?edit=hack">{{ hack.title }}</a></td>
+                            <td><input type="checkbox" name="delete_hack" value="{{ hack.key }}" />Delete entry</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                <input type="submit" value="Delete Selected" />
+            </form>
+        </div>
     </div>
 
-    <div id="award-tab-page" class="tab-page">
-        <h2>Award</h2>
-        <form action="/admin" method="post">
-            <input type="hidden" name="kind" value="award"/>
-            <table class="form">
-                <tr>
-                    <td>Member:</td>
-                    <td>
-                        <select name="members" size="20" multiple="multiple">
-                            {% for member in members %}
-                                <option value="{{ member.key.id }}">{{ member.handle }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Badge:</td>
-                    <td>
-                        <select name="badge">
-                            {% for badge in badges %}
-                                <option value="{{ badge.key.id }}">{{ badge.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Proof:</td>
-                    <td><input type="text" name="proof"/></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td><input type="submit" value="Submit" /></td>
-                </tr>
-            </table>
-        </form>
+{% ifequal tabselect "news" %}
+    <div id="news-tab-page" class="tab-page" style="display: block;">
+{% else %}
+    <div id="news-tab-page" class="tab-page">
+{% endifequal %}
+
+        <h1>News article</h1>
+        <a href="/admin/edit/new?edit=news">Add New article</a>
+        <h3>Article List</h3>
+
+        <div class="news_article_list">
+            <form action="/admin" method="post">
+                <input type="hidden" name="kind" value="news"/>
+                <table>
+                    {% for news_item in news_list %}
+                        <tr>
+                            <td><a href="/admin/edit/{{ news_item.key }}?edit=news">{{ news_item.title }}</a></td>
+                            <td><input type="checkbox" name="delete_entry" value="{{ news_item.key }}" />Delete article</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                <input type="submit" value="Delete Selected" />
+            </form>
+        </div>
     </div>
 
+
+{% ifequal tabselect "talk" %}
+    <div id="talk-tab-page" class="tab-page" style="display: block;">
+{% else %}
     <div id="talk-tab-page" class="tab-page">
+{% endifequal %}
+
         <h2>Talk</h2>
-        <form action="/admin" method="post">
-            <input type="hidden" name="kind" value="talk"/>
-            <table class="form">
-                <tr>
-                    <td>Title:</td>
-                    <td><input type="text" name="title"/></td>
-                </tr>
-                <tr>
-                    <td>Member:</td>
-                    <td>
-                        <select name="member">
-                            {% for member in members %}
-                                <option value="{{ member.key.id }}">{{ member.handle }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Date:</td>
-                    <td>
-                        <input type="text" name="date" id="talk_date" />
-                        <script>$('#talk_date').datepicker({dateFormat: 'yy-mm-dd'})</script>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Video:</td>
-                    <td><input type="text" name="video"/></td>
-                </tr>
-                <tr>
-                    <td>Description:</td>
-                    <td><textarea name="description"></textarea></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td><input type="submit" value="Submit" /></td>
-                </tr>
-            </table>
-        </form>
+        <a href="/admin/edit/new?edit=talk">Add New Talk</a>
+        <h3>Talk List</h3>
+        <div class="talk_list">
+            <form action="/admin" method="post">
+                <input type="hidden" name="kind" value="talk"/>
+                <table>
+                    {% for talk in talk_list %}
+                        <tr>
+                            <td><a href="/admin/edit/{{ talk.key }}?edit=talk">{{ talk.title }}</a></td>
+                            <td><input type="checkbox" name="delete_entry" value="{{ talk.key }}" />Delete talk</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                <input type="submit" value="Delete Selected" />
+            </form>
+        </div>
     </div>
+
+{% ifequal tabselect "image" %}
+    <div id="image-tab-page" class="tab-page" style="display: block;">
+{% else %}
+    <div id="image-tab-page" class="tab-page">
+{% endifequal %}
+
+        <h2>Images</h2>
+        <h3> Uploading Images <h3>
+        <p> You can either upload a new image as a raw image or resized image. Images uploaded elsewhere on this site are automaticaly resized to {{ image_height }} by
+            {{ image_width }}, a raw image will not be resized. The other fields will be ignored if left blank. 
+            <b> Note that images have to be less than 1M. </b>
+        </p>
+
+           <table class="form">
+              <form action="/admin" method="post" enctype="multipart/form-data">
+                 <input type="hidden" name="kind" value="image_upload"/>
+                   <tr>
+                       <td colspan=2> Resize? </td><td><input type="checkbox" name="resize" checked="yes"></td>
+                       <td> Width: </td><td><input type="text" name="width" value="{{ image_width }}"></td>
+                       <td> Height: </td><td><input type="text" name="height" value="{{ image_height }}"></td>
+                   </tr>
+                   <tr>
+                     <td>
+                         <input type="file" name="picture" />
+                     </td>
+                     <td> Alias:</td><td><input type="text" name="alias"/></td>
+                     <td> Title:</td><td><input type="text" name="title"/></td>
+                     <td> Alt:</td><td><input type="text" name="alt"/></td>
+                     <td><input type="submit" value="Upload" /></td>
+                   </tr>
+              </form>
+           </table>
+
+
+        <h3> Managing Images <h3>
+        <p>
+        If you want to use an already uploaded image in the body of a news, talk or hack-a-thon item, or indeed anywhere else on the site, you can use the image
+        alias by putting
+        </p>
+        <p> &lt img src="img?img_alias={insert alias here}" &gt <p>
+        <p>
+        To alter an image's alias, title or alt text, click on the image below
+        </p>
+        <table>
+              {% for picture in image_list %}
+              <tr>
+                 <td><a href="admin/editImage/{{picture.key}}" ><img src="img?img_id={{picture.key }}" title="{{picture.title}}" alt="{{picture.alt}}" /></a></td>
+              </tr>
+              {% endfor %}
+        </table>
+
+    </div>
+
+
 {% endblock %}
