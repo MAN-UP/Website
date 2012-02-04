@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block main %}
+    <div>
+        <h2>Edit Image {{ img_id }} </h2>
+        <p> <a href="/admin?tabselect=image">Back</a>
+        {% if error %}
+           <p> {{ error }} </p>
+        {% else %}
+            <center><img src="img?img_id={{image.key }}" title=image.title alt=image.alt /></center>
+            <form action="/admin/editImage/{{ image.key }}" method="post">
+                <table class="form">
+                    <tr>
+                        <td>Alias:</td>
+                        <td><input type="text" name="name" value="{{ image.name }}"/></td>
+                    </tr>
+                    <tr>
+                        <td>Title:</td>
+                        {% if image.title %}
+                             <td><input type="text" name="title" value="{{ image.title }}"/></td>
+                        {% else %}
+                             <td><input type="text" name="title"/></td>
+                        {% endif %}
+                    </tr>
+                     <tr>
+                        <td>Alt Text:</td>
+                        {% if image.alt %}
+                             <td><input type="text" name="alt" value="{{ image.alt }}"/></td>
+                        {% else %}
+                             <td><input type="text" name="alt""/></td>
+                        {% endif %}
+                    </tr>
+                    <tr>
+                        <td><input type="submit" value="Update" /></td>
+                    </tr>
+                </table>
+            </form>
+        {% endif %}
+    </div>
+{% endblock %}

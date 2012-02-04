@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block main %}
+    <h1>Hackathons</h1>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+
+    <div class="pagedata">
+        {% if pagedata.hasPrev %}<a href="/hack-a-thon?page={{ pagedata.prev }}">Previous Page</a>{% endif %}
+        {% if pagedata.hasNext %}<a href="/hack-a-thon?page={{ pagedata.next }}">Next Page</a>{% endif %}
+    </div>
+    {% for hack in content_list %}
+        <div class="hack-a-thon">
+            <h2>{{ hack.title }}</h2>
+            <p> {% if is_admin %} <a href="/admin/edit/{{ hack.key }}?edit=hack">Edit</a> {% endif %} </p>
+            <center><img src="img?img_id={{ hack.picture.key }}" title="{{hack.picture.title}}" alt="{{hack.picture.alt}}" /></center>
+            <p>{{ hack.date }}</p>
+            <div>{{ hack.body|safe }}</div>
+        </div>
+    {% endfor %}
+
+    <div class="pagedata">
+        {% if pagedata.hasPrev %}<a href="/hack-a-thon?page={{ pagedata.prev }}">Previous Page</a>{% endif %}
+        {% if pagedata.hasNext %}<a href="/hack-a-thon?page={{ pagedata.next }}">Next Page</a>{% endif %}
+    </div>
+{% endblock %}
