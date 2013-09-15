@@ -10,10 +10,10 @@ from google.appengine.api import images
 from google.appengine.ext import db
 # RequestTooLargeError can live in two different places.
 try: 
-    # When deployed 
-    from google.appengine.runtime import RequestTooLargeError 
-except ImportError: 
-    # In the development server 
+    # When deployed
+    from google.appengine.runtime import RequestTooLargeError
+except ImportError:
+    # In the development server
     from google.appengine.runtime.apiproxy_errors import RequestTooLargeError
 
 import utils
@@ -428,7 +428,7 @@ class MemberHandler(BaseHandler):
     def get(self, handle):
         query = Member.gql('WHERE handle = :1', urllib.unquote(handle))
         member = iter(query).next() if query.count() else None
-        member_talks = Talk.all().filter('member = ', member)
+        member_talks = TalkNew.all().filter('member = ', member)
         self.render_template('member', {
             'member': member,
             'member_talks' : member_talks
@@ -502,6 +502,9 @@ class ContactHandler(BaseHandler):
     def get(self):
         self.render_template('contact')
 
+class CommitteeHandler(BaseHandler):
+    def get(self):
+        self.render_template('committee')
 
 class FAQHandler(BaseHandler):
       def get(self):

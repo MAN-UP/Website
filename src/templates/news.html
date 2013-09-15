@@ -15,7 +15,7 @@
     {% for news_item in content_list %}
         <div class="newsitem">
             <h2>{{ news_item.title }}</h2>
-            <p>Author: <a href="/members/{{ news_item.author.handle }}">{{ news_item.author.handle }}</a>, Date: {{ news_item.date }}{% if is_admin %}, <a href="/admin/edit/{{ news_item.key }}?edit=news">Edit</a> {% endif %}</p>
+            <p><!--Author: <a href="/members/{{ news_item.author.handle }}">{{ news_item.author.handle }}</a>,--> Date: {{ news_item.date }}{% if is_admin %}, <a href="/admin/edit/{{ news_item.key }}?edit=news">Edit</a> {% endif %}</p>
             {% if news_item.picture %}
                <center><img src="img?img_id={{news_item.picture.key }}" title="{{news_item.picture.title}}" alt="{{news_item.picture.alt}}" /></center>
             {% endif %}

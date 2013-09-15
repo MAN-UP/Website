@@ -11,7 +11,7 @@ from handlers import AccountHandler, AdminHandler, \
     ImageHandler, CalendarHandler, ImageEditHandler,\
     ContactHandler, EditHandler, FAQHandler, FileNotFoundHandler, \
     HackathonHandler, LoginHandler, ManualHandler, MemberHandler, \
-    MessagesHandler, NewsHandler, TalksHandler
+    MessagesHandler, NewsHandler, TalksHandler, CommitteeHandler
 
 register_template_library('templatetags.customtags')
 
@@ -26,6 +26,7 @@ application = WSGIApplication(
      (r'^/admin/editImage/([^/]+)$'      , ImageEditHandler),
      (r'^/calendar$'                     , CalendarHandler),
      (r'^/contact$'                      , ContactHandler),
+     (r'^/committee$'                    , CommitteeHandler),
      (r'^/faq$'                          , FAQHandler),
      (r'^/hack-a-thon$'                  , HackathonHandler),
      (r'^/img$'                          , ImageHandler),
