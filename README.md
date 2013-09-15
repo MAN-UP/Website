@@ -7,8 +7,7 @@ A CMS where admins on Google Appengine can login and add news articles.
 ## Running the development environment.
 
 Install the google
-[https://developers.google.com/appengine/docs/python/gettingstartedpython27/devenvironment](python
-runtime)
+[python runtime](https://developers.google.com/appengine/docs/python/gettingstartedpython27/devenvironment)
 
 Clone the repo, then in the project's root directory
 
